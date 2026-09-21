@@ -16,19 +16,25 @@ export default function Home() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [lastInput, setLastInput] = useState<DocumentInput | null>(null);
+  const [retryStatus, setRetryStatus] = useState<string | null>(null);
 
   async function handleDocumentReady(input: DocumentInput) {
     setFileName(input.kind === "file" ? input.file.name : input.fileName);
     setLastInput(input);
     setStatus("loading");
     setErrorMessage("");
+    setRetryStatus(null);
     try {
-      const analyzeResult = await analyzeDocument(input);
+      const analyzeResult = await analyzeDocument(input, (attempt, max) =>
+        setRetryStatus(`The AI service is busy — retrying (attempt ${attempt} of ${max})…`)
+      );
       setResult(analyzeResult);
       setStatus("idle");
     } catch (error) {
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Analysis failed.");
+    } finally {
+      setRetryStatus(null);
     }
   }
 
@@ -64,7 +70,7 @@ export default function Home() {
 
       {status === "loading" && (
         <p className="text-sm text-neutral-500 dark:text-neutral-400" role="status">
-          Analyzing &ldquo;{fileName}&rdquo;… this can take up to 30 seconds for longer documents.
+          {retryStatus ?? `Analyzing "${fileName}"… this can take up to 30 seconds for longer documents.`}
         </p>
       )}
       {status === "error" && (

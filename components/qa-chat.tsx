@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { askQuestion } from "@/lib/api-client";
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -11,6 +12,7 @@ export function QaChat({ documentText }: { documentText: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [retryStatus, setRetryStatus] = useState<string | null>(null);
 
   async function handleAsk(e: React.FormEvent) {
     e.preventDefault();
@@ -20,23 +22,19 @@ export function QaChat({ documentText }: { documentText: string }) {
     setMessages((prev) => [...prev, { role: "user", text: q }]);
     setQuestion("");
     setLoading(true);
+    setRetryStatus(null);
 
     try {
-      const res = await fetch("/api/chat-doc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentText, question: q }),
-      });
-      const data = await res.json();
-      const answer = res.ok ? data.answer : `Error: ${data.error ?? "Something went wrong."}`;
+      const answer = await askQuestion(documentText, q, (attempt, max) =>
+        setRetryStatus(`Busy — retrying (${attempt}/${max})…`)
+      );
       setMessages((prev) => [...prev, { role: "assistant", text: answer }]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Network error — please try again." },
-      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong.";
+      setMessages((prev) => [...prev, { role: "assistant", text: `Error: ${message}` }]);
     } finally {
       setLoading(false);
+      setRetryStatus(null);
     }
   }
 
@@ -88,7 +86,9 @@ export function QaChat({ documentText }: { documentText: string }) {
           </p>
         ))}
         {loading && (
-          <p className="mr-auto text-xs text-neutral-500 dark:text-neutral-400">Thinking…</p>
+          <p className="mr-auto text-xs text-neutral-500 dark:text-neutral-400">
+            {retryStatus ?? "Thinking…"}
+          </p>
         )}
       </div>
 
