@@ -2,13 +2,44 @@
 
 import { useState } from "react";
 import { DisclaimerModal } from "@/components/disclaimer-modal";
-import { DocumentUpload } from "@/components/document-upload";
+import { DisclaimerFooter } from "@/components/disclaimer-footer";
+import { DocumentUpload, type DocumentInput } from "@/components/document-upload";
+import { RiskDashboard } from "@/components/risk-dashboard";
+import { QaChat } from "@/components/qa-chat";
+import { ExportPacketButton } from "@/components/export-packet-button";
+import { analyzeDocument, type AnalyzeResult } from "@/lib/api-client";
 
 export default function Home() {
   const [acknowledged, setAcknowledged] = useState(false);
-  const [document, setDocument] = useState<{ text: string; name: string } | null>(
-    null
-  );
+  const [fileName, setFileName] = useState<string>("");
+  const [result, setResult] = useState<AnalyzeResult | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  async function handleDocumentReady(input: DocumentInput) {
+    setFileName(input.kind === "file" ? input.file.name : input.fileName);
+    setStatus("loading");
+    setErrorMessage("");
+    try {
+      const analyzeResult = await analyzeDocument(input);
+      setResult(analyzeResult);
+      setStatus("idle");
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Analysis failed.");
+    }
+  }
+
+  if (result) {
+    return (
+      <main className="min-h-screen pb-10 pt-8">
+        <RiskDashboard report={result.report} documentText={result.documentText} fileName={fileName} />
+        <QaChat documentText={result.documentText} />
+        <ExportPacketButton report={result.report} fileName={fileName} />
+        <DisclaimerFooter />
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-16">
@@ -27,14 +58,16 @@ export default function Home() {
         </p>
       </div>
 
-      <DocumentUpload
-        onDocumentReady={(text, name) => setDocument({ text, name })}
-      />
+      <DocumentUpload disabled={status === "loading"} onDocumentReady={handleDocumentReady} />
 
-      {document && (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          Loaded &ldquo;{document.name}&rdquo; ({document.text.length}{" "}
-          characters). Analysis engine arrives in the next phase.
+      {status === "loading" && (
+        <p className="text-sm text-neutral-500 dark:text-neutral-400" role="status">
+          Analyzing &ldquo;{fileName}&rdquo;… this can take up to 30 seconds for longer documents.
+        </p>
+      )}
+      {status === "error" && (
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+          {errorMessage}
         </p>
       )}
     </main>

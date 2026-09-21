@@ -8,21 +8,30 @@ const SAMPLE_DOCUMENTS = [
   { id: "saas-nda", label: "SaaS NDA", file: "saas-nda.txt" },
 ] as const;
 
+// PDFs are sent to the server as-is for extraction (pdf-parse); plain text
+// (typed samples or .txt files) is sent directly, skipping a redundant
+// round-trip. The parent decides how to call /api/analyze from this shape.
+export type DocumentInput =
+  | { kind: "file"; file: File }
+  | { kind: "text"; text: string; fileName: string };
+
 type DocumentUploadProps = {
-  onDocumentReady: (text: string, fileName: string) => void;
+  disabled?: boolean;
+  onDocumentReady: (input: DocumentInput) => void;
 };
 
-// Upload shell for Phase 1: accepts a dropped/selected file or a one-click
-// sample document. PDF text extraction and the analysis call are wired in
-// Phase 2 (/api/analyze) — this component only resolves plain text.
-export function DocumentUpload({ onDocumentReady }: DocumentUploadProps) {
+export function DocumentUpload({ disabled, onDocumentReady }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [loadingSample, setLoadingSample] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(file: File) {
-    const text = await file.text();
-    onDocumentReady(text, file.name);
+  function handleFile(file: File) {
+    const isPlainText = file.type === "text/plain" || file.name.toLowerCase().endsWith(".txt");
+    if (isPlainText) {
+      file.text().then((text) => onDocumentReady({ kind: "text", text, fileName: file.name }));
+    } else {
+      onDocumentReady({ kind: "file", file });
+    }
   }
 
   async function handleSample(sample: (typeof SAMPLE_DOCUMENTS)[number]) {
@@ -30,7 +39,7 @@ export function DocumentUpload({ onDocumentReady }: DocumentUploadProps) {
     try {
       const res = await fetch(`/samples/${sample.file}`);
       const text = await res.text();
-      onDocumentReady(text, sample.label);
+      onDocumentReady({ kind: "text", text, fileName: sample.label });
     } finally {
       setLoadingSample(null);
     }
@@ -40,21 +49,25 @@ export function DocumentUpload({ onDocumentReady }: DocumentUploadProps) {
     <div className="w-full max-w-xl">
       <div
         role="button"
-        tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
+        onClick={() => !disabled && inputRef.current?.click()}
+        onKeyDown={(e) => !disabled && e.key === "Enter" && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
-          setIsDragging(true);
+          if (!disabled) setIsDragging(true);
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={(e) => {
           e.preventDefault();
           setIsDragging(false);
+          if (disabled) return;
           const file = e.dataTransfer.files[0];
           if (file) handleFile(file);
         }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+        className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+        } ${
           isDragging
             ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-800"
             : "border-neutral-300 dark:border-neutral-700"
@@ -71,6 +84,7 @@ export function DocumentUpload({ onDocumentReady }: DocumentUploadProps) {
           type="file"
           accept=".txt,.pdf"
           className="hidden"
+          disabled={disabled}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
@@ -84,7 +98,7 @@ export function DocumentUpload({ onDocumentReady }: DocumentUploadProps) {
             key={sample.id}
             type="button"
             onClick={() => handleSample(sample)}
-            disabled={loadingSample !== null}
+            disabled={disabled || loadingSample !== null}
             className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
           >
             {loadingSample === sample.id ? "Loading…" : sample.label}

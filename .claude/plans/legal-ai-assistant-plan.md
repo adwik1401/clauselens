@@ -1,6 +1,6 @@
 # PromptWars Legal AI Assistant — Implementation Plan
 
-**Overall Progress:** `17%`
+**Overall Progress:** `83%`
 
 ## TLDR
 Build "ClauseLens" — a GenAI-powered legal document assistant for the PromptWars: Virtual (Exclusive Edition) submission (theme: AI for Legal Assistance & Access). Users upload a contract/legal document and get: plain-language simplification, clause-level risk flagging (RED/AMBER/GREEN with verbatim quote anchors), a grounded Q&A chat over the document, and a one-click "Lawyer Escalation Pack" (summary + targeted questions) — turning the required legal disclaimer into a value-add feature rather than boilerplate. Single Next.js repo, Gemini 2.0 Flash structured outputs, deployed free on Vercel, kept well under the 10MB repo cap.
@@ -40,47 +40,57 @@ Each code phase follows:
 
 **Verification:** `npm run typecheck` passes; `npm run build` passes (Codex's sandboxed `run-code` check hit a `spawn EPERM` — confirmed as a Windows sandbox artifact, not a real failure, by re-running the build directly). Committed and pushed to `origin/main`.
 
-### Phase 2 — Document Ingestion & Structured Analysis Engine
+### Phase 2 — Document Ingestion & Structured Analysis Engine ✅
 > `[DELEGATING → Codex /execute]` → `[DELEGATING → Codex /run-code]` → `[DELEGATING → Codex /review]`
 
-- [ ] 🟥 **Step 4: PDF/text parsing**
-  - [ ] 🟥 `pdf-parse` server-side extraction + clause-boundary regex tagging (`SECTION`, `ARTICLE`, `\d+\.\d+`)
-  - [ ] 🟥 Basic client-side PII sanitization pass before sending to LLM
-- [ ] 🟥 **Step 5: Structured Zod schema**
-  - [ ] 🟥 `LegalAuditReportSchema` (contract type, risk score, executive summary, flagged clauses with exact quote anchors, rights/obligations, questions for lawyer, action checklist)
-- [ ] 🟥 **Step 6: `/api/analyze` route**
-  - [ ] 🟥 Single structured Gemini 2.0 Flash call with system prompt (closed-corpus grounding, zero-hallucination quote rule, adversarial risk checklist)
-  - [ ] 🟥 Zod validation on request + response
+- [x] 🟩 **Step 4: PDF/text parsing**
+  - [x] 🟩 `pdf-parse` server-side extraction (`lib/pdf.ts`) + clause-boundary regex tagging (`lib/clause-parser.ts`: `SECTION`, `ARTICLE`, `\d+\.\d+`, `(a)`-style sub-clauses)
+  - [x] 🟩 PII sanitization pass (`lib/pii.ts`: emails, phone numbers, SSNs, card numbers) applied server-side before the LLM call
+- [x] 🟩 **Step 5: Structured Zod schema**
+  - [x] 🟩 `LegalAuditReportSchema` in `lib/schemas/legal-audit.ts` (contract type, risk score, executive summary, flagged clauses with exact quote anchors, rights/obligations, questions for lawyer, action checklist)
+- [x] 🟩 **Step 6: `/api/analyze` route**
+  - [x] 🟩 Single structured Gemini 2.0 Flash call (`app/api/analyze/route.ts`) with system prompt (closed-corpus grounding, zero-hallucination quote rule, adversarial risk checklist, prompt-injection guard treating document text as data not instructions)
+  - [x] 🟩 Zod validation on request + response (response is JSON-parsed then `safeParse`d against the schema before ever reaching the client)
 
-### Phase 3 — Risk Dashboard UI & Disclaimer Layers
+**Deviation from plan:** `lib/gemini.ts` originally threw eagerly if `GEMINI_API_KEY` was unset at module load — this broke `next build`, since Next imports route modules at build time to collect page data. Fixed by making the Gemini client lazily constructed (`getGemini()`), so the key is only required at request time, not build time.
+
+### Phase 3 — Risk Dashboard UI & Disclaimer Layers ✅
 > `[DELEGATING → Codex /execute]` → `[DELEGATING → Codex /run-code]` → `[DELEGATING → Codex /review]`
 
-- [ ] 🟥 **Step 7: Split-view results screen**
-  - [ ] 🟥 Left: document text with highlighted quote anchors; Right: risk cards (RED/AMBER/GREEN badges, plain-English explanation, "gotcha")
-  - [ ] 🟥 Executive summary, rights/obligations lists, overall risk score
-- [ ] 🟥 **Step 8: Persistent + inline disclaimers**
-  - [ ] 🟥 Sticky footer notice
-  - [ ] 🟥 Per-risk-card advisory badge
+- [x] 🟩 **Step 7: Split-view results screen**
+  - [x] 🟩 Left: `components/document-viewer.tsx` — document text with highlighted quote anchors (via `lib/highlight.ts`), clickable to jump to the matching risk card; Right: `components/risk-card.tsx` + `components/risk-badge.tsx` (CRITICAL/HIGH/MEDIUM/LOW badges, plain-English explanation, "why flagged", suggested next step)
+  - [x] 🟩 Executive summary, rights/obligations lists, overall risk score in `components/risk-dashboard.tsx`
+- [x] 🟩 **Step 8: Persistent + inline disclaimers**
+  - [x] 🟩 Sticky footer notice (`components/disclaimer-footer.tsx`, layer 2)
+  - [x] 🟩 Per-risk-card advisory via the risk badge (layer 3)
 
-### Phase 4 — Document Q&A + Lawyer Escalation Pack
+### Phase 4 — Document Q&A + Lawyer Escalation Pack ✅
 > `[DELEGATING → Codex /execute]` → `[DELEGATING → Codex /run-code]` → `[DELEGATING → Codex /review]`
 
-- [ ] 🟥 **Step 9: Grounded Q&A chat**
-  - [ ] 🟥 `/api/chat-doc` route, answers constrained to document context, cites section numbers
-  - [ ] 🟥 Chat drawer UI on results screen
-- [ ] 🟥 **Step 10: Lawyer Escalation Pack export**
-  - [ ] 🟥 `/api/export-packet` generates Markdown/PDF: summary, flagged risks, 5-7 targeted attorney questions
-  - [ ] 🟥 One-click download button on results screen
+- [x] 🟩 **Step 9: Grounded Q&A chat**
+  - [x] 🟩 `/api/chat-doc` route, answers constrained to document context, cites section numbers
+  - [x] 🟩 Chat drawer UI (`components/qa-chat.tsx`) on results screen
+- [x] 🟩 **Step 10: Lawyer Escalation Pack export**
+  - [x] 🟩 `lib/export-packet.ts` builds the Markdown briefing sheet client-side from the already-returned analysis report (summary, flagged risks, questions, action checklist) — no separate API route or extra LLM call needed, since the data already exists after `/api/analyze`
+  - [x] 🟩 One-click download button (`components/export-packet-button.tsx`)
 
-### Phase 5 — Testing, Security & Accessibility Pass
+**Deviation from plan:** Step 10 was planned as an `/api/export-packet` route; implemented as a client-side Markdown builder instead, since the report data is already on the client after analysis — avoids a redundant network round-trip and LLM call (better Efficiency score, simpler code for Code Quality).
+
+### Phase 5 — Testing, Security & Accessibility Pass ✅
 > `[DELEGATING → Codex /execute]` → `[DELEGATING → Codex /run-code]` → `[DELEGATING → Codex /review]`
 
-- [ ] 🟥 **Step 11: Unit tests (Vitest)**
-  - [ ] 🟥 Clause parser tests, schema validation tests, PII sanitizer tests
-- [ ] 🟥 **Step 12: Security hardening**
-  - [ ] 🟥 Confirm no secrets committed, server-only key usage, input validation on all API routes, basic prompt-injection guard in system prompt
-- [ ] 🟥 **Step 13: Accessibility pass**
-  - [ ] 🟥 Semantic HTML (`main`, `nav`, `article`), ARIA on risk badges, WCAG AA contrast check
+- [x] 🟩 **Step 11: Unit tests (Vitest)**
+  - [x] 🟩 23 tests across `lib/__tests__/`: clause parser (4), PII sanitizer (5), highlight ranges (5), Zod schemas (8), plus outline rendering — all passing
+  - [x] 🟩 Tests caught two real bugs, fixed: (1) the numbered-clause heading regex required a trailing period ("4.1." but not "4.1 Indemnification"); (2) the phone-number PII regex left a stray leading "(" unmasked because a `\b` boundary can't match between two non-word characters
+- [x] 🟩 **Step 12: Security hardening**
+  - [x] 🟩 No secrets committed (`.env.local` gitignored, `.env.example` empty); Gemini client stays server-only, imported only from route handlers
+  - [x] 🟩 Zod validation on both API routes' inputs and the analyze route's output
+  - [x] 🟩 Prompt-injection guard in the system prompt (document text treated as data, not instructions)
+  - [x] 🟩 Added upload size limits not in the original plan: 8MB file cap (`app/api/analyze/route.ts`) and a 500k-character cap on pasted text (`AnalyzeRequestSchema`), closing a DoS/cost-abuse gap found during this pass
+- [x] 🟩 **Step 13: Accessibility pass**
+  - [x] 🟩 Semantic HTML (`main`, `header`, `article`, `section[aria-label]`) already in place from Phase 3; added `aria-label` to the Q&A chat input, which previously relied on placeholder-only labeling
+
+**Verification:** `npm run typecheck`, `npm run lint`, `npx vitest run` (23/23), and `npm run build` all pass clean.
 
 ### Phase 6 — Deploy, Submission Assets & Quality Gate
 > Claude-managed (no sub-agent delegation)
