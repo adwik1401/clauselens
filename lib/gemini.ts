@@ -23,11 +23,15 @@ export function getGemini(): GoogleGenAI {
   return client;
 }
 
-// Flash model: large context window (full contract in one call), low latency,
-// cheap enough for repeated hackathon-demo use. gemini-2.0-flash was retired
-// by Google; gemini-3.6-flash is the current replacement (confirmed via the
-// API's own 404 error message, which names it directly).
-export const GEMINI_MODEL = "gemini-3.6-flash";
+// Flash-Lite model: large context window (full contract in one call), low
+// latency. gemini-2.0-flash was retired by Google; its suggested replacement,
+// gemini-3.6-flash, has only a 20-requests/day free-tier quota (confirmed by
+// hitting it during testing — 429 RESOURCE_EXHAUSTED, limit: 20). Verified
+// directly against the live API (models.list + a real structured-output
+// call, not just documentation) that gemini-3.5-flash-lite is available on
+// this key with separate, unexhausted quota and produces equivalent-quality
+// structured JSON output for this use case.
+export const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 function isRetryableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -46,4 +50,30 @@ export async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     return fn();
   }
+}
+
+// Maps a Gemini API failure to an HTTP status and message the client can
+// act on correctly. This distinction matters: a 503 ("high demand") is
+// worth retrying within seconds, but a 429 quota-exhaustion error is not —
+// the quota resets on Google's clock, not ours, so the client-side retry
+// (lib/api-client.ts) only retries on 503, never on 429.
+export function classifyGeminiError(error: unknown): { status: number; message: string } {
+  const raw = error instanceof Error ? error.message : String(error);
+
+  if (raw.includes("RESOURCE_EXHAUSTED") || raw.includes("429")) {
+    return {
+      status: 429,
+      message:
+        "The AI service's request quota has been used up for now. This resets on a timer — please try again later.",
+    };
+  }
+
+  if (isRetryableError(error)) {
+    return {
+      status: 503,
+      message: "The AI service is experiencing high demand right now. Please wait a moment and try again.",
+    };
+  }
+
+  return { status: 500, message: "Analysis failed. Please try again." };
 }

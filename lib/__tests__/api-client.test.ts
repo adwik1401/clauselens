@@ -9,6 +9,19 @@ function jsonResponse(ok: boolean, status: number, body: unknown): Response {
   } as Response;
 }
 
+// Simulates a platform-level failure (gateway timeout/error page) where the
+// body is HTML, not JSON — what a crashed/timed-out serverless function
+// returns instead of our route's own JSON error response.
+function htmlErrorResponse(status: number): Response {
+  return {
+    ok: false,
+    status,
+    json: async () => {
+      throw new SyntaxError("Unexpected token '<', \"<HTML> <HE\"... is not valid JSON");
+    },
+  } as unknown as Response;
+}
+
 describe("askQuestion", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -38,6 +51,24 @@ describe("askQuestion", () => {
     await expect(askQuestion("doc text", "question?")).rejects.toThrow("bad request");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it("retries when the response body isn't valid JSON (platform-level failure)", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(htmlErrorResponse(502))
+      .mockResolvedValueOnce(jsonResponse(true, 200, { answer: "Yes." }));
+
+    await expect(askQuestion("doc text", "question?")).resolves.toBe("Yes.");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  }, 10000);
+
+  it("eventually throws a readable error if every attempt returns non-JSON", async () => {
+    vi.mocked(fetch).mockResolvedValue(htmlErrorResponse(504));
+
+    await expect(askQuestion("doc text", "question?")).rejects.toThrow(
+      "The server returned an unexpected response."
+    );
+    expect(fetch).toHaveBeenCalledTimes(3);
+  }, 10000);
 });
 
 describe("analyzeDocument", () => {

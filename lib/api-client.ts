@@ -21,12 +21,24 @@ async function fetchWithRetry(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const res = await makeRequest();
-    const data = await res.json();
 
-    if (res.ok) return data;
+    // The route always returns JSON, success or failure — so a parse
+    // failure here means the platform itself intervened before our code
+    // ran (a gateway timeout/error page, typically HTML). That's exactly
+    // the kind of transient infra failure worth retrying, same as a 503.
+    let data: { error?: string; [key: string]: unknown };
+    let parseFailed = false;
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+      parseFailed = true;
+    }
 
-    lastError = data.error ?? lastError;
-    const isRetryable = res.status === 503;
+    if (res.ok && !parseFailed) return data;
+
+    lastError = data.error ?? (parseFailed ? "The server returned an unexpected response." : lastError);
+    const isRetryable = parseFailed || res.status === 503;
     const hasAttemptsLeft = attempt < MAX_ATTEMPTS;
 
     if (!isRetryable || !hasAttemptsLeft) {

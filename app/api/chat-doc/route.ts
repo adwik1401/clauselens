@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getGemini, GEMINI_MODEL, withGeminiRetry } from "@/lib/gemini";
+import { classifyGeminiError, getGemini, GEMINI_MODEL, withGeminiRetry } from "@/lib/gemini";
 import { buildQaPrompt } from "@/lib/prompts";
 
 const ChatRequestSchema = z.object({
@@ -39,10 +39,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ answer });
   } catch (error) {
     console.error("[api/chat-doc] Gemini request failed:", error);
-    const message =
-      error instanceof Error && error.message.includes("503")
-        ? "The AI service is experiencing high demand right now. Please wait a moment and try again."
-        : "Could not answer that question. Please try again.";
-    return NextResponse.json({ error: message }, { status: 503 });
+    const { status, message } = classifyGeminiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }
