@@ -24,5 +24,7 @@ export function getGemini(): GoogleGenAI {
 }
 
 // Flash model: large context window (full contract in one call), low latency,
-// cheap enough for repeated hackathon-demo use.
-export const GEMINI_MODEL = "gemini-2.0-flash";
+// cheap enough for repeated hackathon-demo use. gemini-2.0-flash was retired
+// by Google; gemini-3.6-flash is the current replacement (confirmed via the
+// API's own 404 error message, which names it directly).
+export const GEMINI_MODEL = "gemini-3.6-flash";

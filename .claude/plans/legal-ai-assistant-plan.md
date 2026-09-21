@@ -1,6 +1,6 @@
 # PromptWars Legal AI Assistant — Implementation Plan
 
-**Overall Progress:** `83%`
+**Overall Progress:** `96%` (everything done except recording the demo video, which needs the user)
 
 ## TLDR
 Build "ClauseLens" — a GenAI-powered legal document assistant for the PromptWars: Virtual (Exclusive Edition) submission (theme: AI for Legal Assistance & Access). Users upload a contract/legal document and get: plain-language simplification, clause-level risk flagging (RED/AMBER/GREEN with verbatim quote anchors), a grounded Q&A chat over the document, and a one-click "Lawyer Escalation Pack" (summary + targeted questions) — turning the required legal disclaimer into a value-add feature rather than boilerplate. Single Next.js repo, Gemini 2.0 Flash structured outputs, deployed free on Vercel, kept well under the 10MB repo cap.
@@ -18,7 +18,7 @@ Each code phase follows:
 - **Scope:** contract/legal-document risk analysis + plain-language + Q&A + lawyer escalation pack, covering use cases #1, #3, #4, #6, #7 from the problem statement in one coherent flow — not a generic "chat with PDF" wrapper.
 - **No vector DB / RAG chunking:** Gemini's long-context window ingests the full document in one call; avoids repo bloat and chunking complexity inappropriate for a <10MB, 5-day solo build.
 - **Single structured multi-task LLM call** (Zod schema, one `/api/analyze` request) instead of multiple sequential calls — lower latency, simpler code, cleaner "GenAI Architecture" mapping for submission requirement #4.
-- **Stack:** Next.js 15 (App Router, TS) + `@google/genai` (Gemini 2.0 Flash) + Tailwind + shadcn/ui + `pdf-parse` + Zod. Single repo, deployed to Vercel free tier.
+- **Stack:** Next.js 15 (App Router, TS) + `@google/genai` (`gemini-3.6-flash` — `gemini-2.0-flash` was retired by Google mid-project) + Tailwind + `pdf-parse` + Zod (shadcn/ui was never actually needed — plain Tailwind covered every component). Single repo, deployed to **Netlify** (changed from the original Vercel plan — see Phase 6).
 - **Disclaimers as UX, not boilerplate:** three-layer guardrail (entry modal → persistent footer → inline risk-card badges) plus the Lawyer Escalation Pack, satisfying the case study's "Legal Boundary" requirement while being demo-able in the video.
 - **API key server-side only**, `.env.example` committed, `.env.local` gitignored — no secrets in repo.
 
@@ -92,13 +92,17 @@ Each code phase follows:
 
 **Verification:** `npm run typecheck`, `npm run lint`, `npx vitest run` (23/23), and `npm run build` all pass clean.
 
-### Phase 6 — Deploy, Submission Assets & Quality Gate
+### Phase 6 — Deploy, Submission Assets & Quality Gate 🟨
 > Claude-managed (no sub-agent delegation)
 
-- [ ] 🟥 Deploy to Vercel free tier, confirm live URL works end-to-end
-- [ ] 🟥 Verify repo size < 10MB and is public
-- [ ] 🟥 Write `README.md` with explicit GenAI Architecture section (services used + integration points) per submission requirement #4
-- [ ] 🟥 Write project description (problem solved, concise) per submission requirement #3
-- [ ] 🟥 Record demo video (<4 min, live data entry, GenAI output visibly highlighted) per Video Guide Requirements
-- [ ] 🟥 Update `.claude/plans/legal-ai-assistant-plan.md` status to 100% and log entry in `CHANGELOG.md`
-- [ ] 🟥 Final submission checklist: deployed prototype link, public GitHub repo link, description, GenAI architecture doc, demo video link — submit before Sept 26, 2026 deadline
+- [x] 🟩 Deploy — switched from the planned Vercel target to **Netlify** (user's call, mid-phase, after a GitHub Pages option was ruled out: static-only hosting can't run the Next.js API routes this app depends on). Deployed under the user's personal Netlify account (not the QCIN org account the CLI was initially logged into) to `https://clauselens-793.netlify.app`. Verified live end-to-end: `/api/analyze` and `/api/chat-doc` both tested against the deployed functions with real sample documents.
+- [x] 🟩 Verify repo size < 10MB and is public — confirmed public, ~245KB pushed (`git count-objects -vH`)
+- [x] 🟩 `README.md` written with explicit GenAI Architecture section (Gemini `gemini-3.6-flash`, both call sites, data flow, why no vector DB)
+- [x] 🟩 Project description written (`SUBMISSION.md`)
+- [ ] 🟥 **Record demo video (<4 min, live data entry) — blocked on the user; Claude cannot record a screen or narrate video in this environment.** Suggested shot list is in `SUBMISSION.md`.
+- [x] 🟩 Plan and `CHANGELOG.md` updated
+- [ ] 🟥 Final submission: everything is ready except the demo video — see `SUBMISSION.md` checklist. Submit before Sept 26, 2026.
+
+**Deviations from plan, both requiring mid-phase user decisions:**
+1. **Deploy target**: plan said Vercel; user chose Netlify after GitHub Pages was ruled out as technically incompatible (no server for API routes).
+2. **GenAI provider**: briefly switched to OpenRouter (reusing a key from PromptWars Challenge 4) at the user's request, then reverted to Gemini after that key turned out to be expired and the user generated a fresh Gemini key instead. Also found and fixed along the way: `gemini-2.0-flash` was retired by Google mid-project; the API's own 404 error named the replacement (`gemini-3.6-flash`), now in use.
