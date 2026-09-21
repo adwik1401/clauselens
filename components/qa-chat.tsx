@@ -5,6 +5,22 @@ import { askQuestion } from "@/lib/api-client";
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
+function ChatIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
 // Grounded Q&A drawer: every question is answered against the loaded
 // document only (see /api/chat-doc), never general knowledge.
 export function QaChat({ documentText }: { documentText: string }) {
@@ -43,32 +59,33 @@ export function QaChat({ documentText }: { documentText: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-14 right-4 z-30 rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-white dark:text-neutral-900"
+        className="fixed bottom-16 right-4 z-30 flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-diffuse-lg transition-transform duration-150 active:scale-[0.98] dark:bg-white dark:text-stone-900"
       >
+        <ChatIcon />
         Ask about this document
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-14 right-4 z-30 flex h-96 w-80 flex-col rounded-xl border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
-        <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+    <div className="fixed bottom-16 right-4 z-30 flex h-96 w-80 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-diffuse-lg dark:border-stone-800 dark:bg-stone-900">
+      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3 dark:border-stone-800">
+        <h2 className="font-heading text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-50">
           Ask about this document
         </h2>
         <button
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Close chat"
-          className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-50"
+          className="rounded-full p-1 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-50"
         >
-          ✕
+          <CloseIcon />
         </button>
       </div>
 
-      <div className="flex-1 space-y-2 overflow-y-auto px-3 py-2">
+      <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3">
         {messages.length === 0 && (
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
             Answers are grounded in this document only — not general legal
             knowledge.
           </p>
@@ -76,34 +93,34 @@ export function QaChat({ documentText }: { documentText: string }) {
         {messages.map((m, i) => (
           <p
             key={i}
-            className={`rounded-lg px-2.5 py-1.5 text-sm ${
+            className={`rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
               m.role === "user"
-                ? "ml-auto max-w-[85%] bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-                : "mr-auto max-w-[85%] bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100"
+                ? "ml-auto max-w-[85%] bg-accent text-accent-foreground"
+                : "mr-auto max-w-[85%] bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-100"
             }`}
           >
             {m.text}
           </p>
         ))}
         {loading && (
-          <p className="mr-auto text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="mr-auto text-xs text-stone-500 dark:text-stone-400">
             {retryStatus ?? "Thinking…"}
           </p>
         )}
       </div>
 
-      <form onSubmit={handleAsk} className="flex gap-2 border-t border-neutral-200 p-2 dark:border-neutral-800">
+      <form onSubmit={handleAsk} className="flex gap-2 border-t border-stone-200 p-2.5 dark:border-stone-800">
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="e.g. Can I sublet the apartment?"
           aria-label="Ask a question about this document"
-          className="flex-1 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+          className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-sm text-stone-900 placeholder:text-stone-400 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-50"
         />
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          className="rounded-lg bg-accent px-3.5 py-1.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           Ask
         </button>

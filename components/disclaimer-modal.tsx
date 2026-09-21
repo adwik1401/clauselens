@@ -17,26 +17,29 @@ export function DisclaimerModal({ onAcknowledge }: DisclaimerModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="disclaimer-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 px-4 backdrop-blur-[2px]"
     >
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="w-full max-w-md animate-fade-up rounded-2xl border border-stone-200 bg-white p-7 shadow-diffuse-lg dark:border-stone-800 dark:bg-stone-900">
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+          Before you begin
+        </span>
         <h2
           id="disclaimer-title"
-          className="text-lg font-semibold text-neutral-900 dark:text-neutral-50"
+          className="mt-2 font-heading text-xl font-semibold tracking-tightest text-stone-900 dark:text-stone-50"
         >
-          Legal Information, Not Legal Counsel
+          Legal information, not legal counsel
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
-          This tool uses Artificial Intelligence to analyze document text and
+        <p className="mt-3 text-sm leading-relaxed text-stone-600 dark:text-stone-400">
+          This tool uses artificial intelligence to analyze document text and
           assist your comprehension. It does not provide legal advice, cannot
           evaluate legal enforceability under localized state statutes, and
           does not create an attorney-client relationship. Always consult a
           qualified attorney for critical legal transactions.
         </p>
-        <label className="mt-5 flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
+        <label className="mt-6 flex items-start gap-2.5 text-sm text-stone-700 dark:text-stone-200">
           <input
             type="checkbox"
-            className="mt-0.5"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 text-accent accent-accent"
             checked={checked}
             onChange={(e) => setChecked(e.target.checked)}
           />
@@ -46,9 +49,9 @@ export function DisclaimerModal({ onAcknowledge }: DisclaimerModalProps) {
           type="button"
           disabled={!checked}
           onClick={onAcknowledge}
-          className="mt-5 w-full rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+          className="mt-6 w-full rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-800 dark:disabled:text-stone-600"
         >
-          Continue to Analyze Document
+          Continue to analyze document
         </button>
       </div>
     </div>

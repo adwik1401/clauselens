@@ -5,35 +5,36 @@ export function RiskCard({ clause, index }: { clause: ClauseRisk; index: number 
   return (
     <article
       id={`clause-${index}`}
-      className="scroll-mt-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+      style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+      className="animate-fade-up scroll-mt-4 rounded-xl border border-stone-200 bg-white p-4 shadow-diffuse-sm transition-shadow duration-200 hover:shadow-diffuse dark:border-stone-800 dark:bg-stone-900"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+          <h3 className="font-heading text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-50">
             {clause.clauseTitle}
           </h3>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="mt-0.5 font-mono text-[11px] text-stone-400 dark:text-stone-500">
             Section {clause.sectionNumber}
           </p>
         </div>
         <RiskBadge level={clause.riskLevel} />
       </div>
 
-      <blockquote className="mt-2 border-l-2 border-neutral-300 pl-3 text-xs italic text-neutral-600 dark:border-neutral-700 dark:text-neutral-400">
+      <blockquote className="mt-3 border-l-2 border-stone-200 pl-3 font-mono text-xs italic leading-relaxed text-stone-500 dark:border-stone-700 dark:text-stone-400">
         &ldquo;{clause.exactQuote}&rdquo;
       </blockquote>
 
-      <p className="mt-3 text-sm text-neutral-700 dark:text-neutral-200">
+      <p className="mt-3 text-[13px] leading-relaxed text-stone-700 dark:text-stone-200">
         {clause.plainEnglishExplanation}
       </p>
 
-      <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">
-        <span className="font-medium">Why this is flagged: </span>
+      <p className="mt-2.5 text-[13px] leading-relaxed text-stone-700 dark:text-stone-200">
+        <span className="font-semibold text-stone-900 dark:text-stone-50">Why this is flagged — </span>
         {clause.potentialGotcha}
       </p>
 
-      <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-200">
-        <span className="font-medium">Suggested next step: </span>
+      <p className="mt-2.5 text-[13px] leading-relaxed text-stone-700 dark:text-stone-200">
+        <span className="font-semibold text-stone-900 dark:text-stone-50">Suggested next step — </span>
         {clause.suggestedNegotiationPoint}
       </p>
     </article>

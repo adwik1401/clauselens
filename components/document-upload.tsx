@@ -20,6 +20,29 @@ type DocumentUploadProps = {
   onDocumentReady: (input: DocumentInput) => void;
 };
 
+// Inline SVG, no icon library dependency — a document-with-corner-fold
+// glyph at a consistent 1.5px stroke, matching the icon rules without
+// adding package weight to the repo.
+function DocumentIcon() {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M13.5 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V8L13.5 3Z" />
+      <path d="M13.5 3v4.5A1.5 1.5 0 0 0 15 9h3.5" />
+      <path d="M9 13h6M9 16.5h4" />
+    </svg>
+  );
+}
+
 export function DocumentUpload({ disabled, onDocumentReady }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [loadingSample, setLoadingSample] = useState<string | null>(null);
@@ -65,18 +88,21 @@ export function DocumentUpload({ disabled, onDocumentReady }: DocumentUploadProp
           const file = e.dataTransfer.files[0];
           if (file) handleFile(file);
         }}
-        className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+        className={`flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-14 text-center transition-all duration-200 ${
           disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
         } ${
           isDragging
-            ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-800"
-            : "border-neutral-300 dark:border-neutral-700"
+            ? "border-accent bg-accent/[0.04] shadow-diffuse"
+            : "border-stone-300 bg-white shadow-diffuse-sm hover:border-stone-400 hover:shadow-diffuse dark:border-stone-700 dark:bg-stone-900 dark:hover:border-stone-600"
         }`}
       >
-        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
+        <div className="text-stone-400 dark:text-stone-500">
+          <DocumentIcon />
+        </div>
+        <p className="mt-3 text-sm font-medium text-stone-900 dark:text-stone-50">
           Drop a contract or legal document here
         </p>
-        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
           .txt, .pdf — or pick a sample below
         </p>
         <input
@@ -92,14 +118,14 @@ export function DocumentUpload({ disabled, onDocumentReady }: DocumentUploadProp
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
         {SAMPLE_DOCUMENTS.map((sample) => (
           <button
             key={sample.id}
             type="button"
             onClick={() => handleSample(sample)}
             disabled={disabled || loadingSample !== null}
-            className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            className="rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-medium text-stone-700 shadow-diffuse-sm transition-colors hover:border-stone-300 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
           >
             {loadingSample === sample.id ? "Loading…" : sample.label}
           </button>
