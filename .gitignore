@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Sample PDFs (keep only small fixtures under public/samples)
+*.pdf
+!public/samples/*.pdf
+
+# Testing & logs
+coverage/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
