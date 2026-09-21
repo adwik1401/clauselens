@@ -1,0 +1,23 @@
+FREELANCER MASTER SERVICES AGREEMENT
+
+SECTION 1. SCOPE OF SERVICES
+1.1 Contractor agrees to provide software development services ("Services") to Client as described in each Statement of Work.
+
+SECTION 2. PAYMENT TERMS
+2.1 Client shall pay Contractor within forty-five (45) days of invoice receipt.
+2.2 Late payments do not accrue interest.
+
+SECTION 3. INTELLECTUAL PROPERTY
+3.1 All work product, including any pre-existing tools, libraries, or personal projects of Contractor incorporated into the Services, shall be assigned exclusively to Client upon creation.
+
+SECTION 4. INDEMNIFICATION
+4.1 Contractor shall indemnify, defend, and hold harmless Client from any and all claims, damages, and liabilities arising from the Services, without limitation and without any corresponding obligation on Client.
+
+SECTION 5. TERMINATION
+5.1 Client may terminate this Agreement at any time without notice. Contractor may terminate only with sixty (60) days' written notice.
+
+SECTION 6. NON-COMPETE
+6.1 Contractor shall not provide similar services to any business in the same industry as Client for a period of twenty-four (24) months following termination, in any geographic market worldwide.
+
+SECTION 7. DISPUTE RESOLUTION
+7.1 Any dispute shall be resolved through binding arbitration. Contractor waives any right to participate in a class action or jury trial.

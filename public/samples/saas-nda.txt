@@ -1,0 +1,20 @@
+MUTUAL NON-DISCLOSURE AGREEMENT (SaaS Evaluation)
+
+SECTION 1. DEFINITION OF CONFIDENTIAL INFORMATION
+1.1 "Confidential Information" means any information disclosed by either party, whether marked confidential or not, including but not limited to source code, pricing, roadmaps, and customer data.
+
+SECTION 2. OBLIGATIONS
+2.1 The Receiving Party shall protect Confidential Information using the same degree of care it uses for its own confidential information, but no less than reasonable care.
+2.2 The Receiving Party may not disclose Confidential Information to any third party without prior written consent.
+
+SECTION 3. TERM
+3.1 This Agreement remains in effect for five (5) years from the Effective Date. Confidentiality obligations survive termination indefinitely for trade secrets.
+
+SECTION 4. RESIDUALS CLAUSE
+4.1 Either party may use Confidential Information retained in the unaided memory of employees who had access to it, without restriction.
+
+SECTION 5. IP OWNERSHIP
+5.1 No license or ownership interest in either party's intellectual property is granted under this Agreement.
+
+SECTION 6. GOVERNING LAW AND VENUE
+6.1 This Agreement is governed by the laws of the State of California, with exclusive venue in Santa Clara County.

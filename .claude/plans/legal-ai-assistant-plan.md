@@ -1,6 +1,6 @@
 # PromptWars Legal AI Assistant — Implementation Plan
 
-**Overall Progress:** `0%`
+**Overall Progress:** `17%`
 
 ## TLDR
 Build "ClauseLens" — a GenAI-powered legal document assistant for the PromptWars: Virtual (Exclusive Edition) submission (theme: AI for Legal Assistance & Access). Users upload a contract/legal document and get: plain-language simplification, clause-level risk flagging (RED/AMBER/GREEN with verbatim quote anchors), a grounded Q&A chat over the document, and a one-click "Lawyer Escalation Pack" (summary + targeted questions) — turning the required legal disclaimer into a value-add feature rather than boilerplate. Single Next.js repo, Gemini 2.0 Flash structured outputs, deployed free on Vercel, kept well under the 10MB repo cap.
@@ -24,19 +24,21 @@ Each code phase follows:
 
 ## Tasks:
 
-### Phase 1 — Project Scaffold & GenAI Integration Setup
+### Phase 1 — Project Scaffold & GenAI Integration Setup ✅
 > `[DELEGATING → Codex /execute]` → `[DELEGATING → Codex /run-code]` → `[DELEGATING → Codex /review]`
 
-- [ ] 🟥 **Step 1: Initialize Next.js 15 project**
-  - [ ] 🟥 App Router, TypeScript, Tailwind CSS, ESLint
-  - [ ] 🟥 Install shadcn/ui, Lucide icons, Zod
-  - [ ] 🟥 `.gitignore` tuned for <10MB repo (exclude `.next/`, `node_modules/`, sample PDFs except small fixtures)
-- [ ] 🟥 **Step 2: Gemini SDK integration**
-  - [ ] 🟥 Install `@google/genai`, wire `lib/gemini.ts` (server-side client, key from `process.env.GEMINI_API_KEY`)
-  - [ ] 🟥 `.env.example` with `GEMINI_API_KEY=`
-- [ ] 🟥 **Step 3: Upload UI shell**
-  - [ ] 🟥 Landing page with PDF/text dropzone + 3 instant sample documents (Freelancer MSA, Apartment Lease, SaaS NDA)
-  - [ ] 🟥 Entry disclaimer modal ("Legal Information, Not Legal Counsel") gating analysis
+- [x] 🟩 **Step 1: Initialize Next.js 15 project**
+  - [x] 🟩 App Router, TypeScript, Tailwind CSS, ESLint (manually scaffolded — `create-next-app` rejected the folder name's capital letters)
+  - [x] 🟩 Zod installed (shadcn/ui + Lucide deferred to Phase 3 when UI components need them, to avoid unused deps now)
+  - [x] 🟩 `.gitignore` tuned for <10MB repo (excludes `.next/`, `node_modules/`, sample PDFs except small fixtures)
+- [x] 🟩 **Step 2: Gemini SDK integration**
+  - [x] 🟩 Installed `@google/genai`, wired `lib/gemini.ts` (server-side client, key from `process.env.GEMINI_API_KEY`)
+  - [x] 🟩 `.env.example` with `GEMINI_API_KEY=`
+- [x] 🟩 **Step 3: Upload UI shell**
+  - [x] 🟩 Landing page (`app/page.tsx`) with drag/drop + file-picker upload and 3 instant sample documents (Freelancer MSA, Apartment Lease, SaaS NDA) as `.txt` fixtures under `public/samples/`
+  - [x] 🟩 Entry disclaimer modal ("Legal Information, Not Legal Counsel") gating the page, `components/disclaimer-modal.tsx`
+
+**Verification:** `npm run typecheck` passes; `npm run build` passes (Codex's sandboxed `run-code` check hit a `spawn EPERM` — confirmed as a Windows sandbox artifact, not a real failure, by re-running the build directly). Committed and pushed to `origin/main`.
 
 ### Phase 2 — Document Ingestion & Structured Analysis Engine
 > `[DELEGATING → Codex /execute]` → `[DELEGATING → Codex /run-code]` → `[DELEGATING → Codex /review]`
