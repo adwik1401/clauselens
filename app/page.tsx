@@ -15,9 +15,11 @@ export default function Home() {
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [lastInput, setLastInput] = useState<DocumentInput | null>(null);
 
   async function handleDocumentReady(input: DocumentInput) {
     setFileName(input.kind === "file" ? input.file.name : input.fileName);
+    setLastInput(input);
     setStatus("loading");
     setErrorMessage("");
     try {
@@ -66,9 +68,20 @@ export default function Home() {
         </p>
       )}
       {status === "error" && (
-        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {errorMessage}
-        </p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {errorMessage}
+          </p>
+          {lastInput && (
+            <button
+              type="button"
+              onClick={() => handleDocumentReady(lastInput)}
+              className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            >
+              Try again
+            </button>
+          )}
+        </div>
       )}
     </main>
   );

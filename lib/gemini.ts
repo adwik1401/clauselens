@@ -28,3 +28,22 @@ export function getGemini(): GoogleGenAI {
 // by Google; gemini-3.6-flash is the current replacement (confirmed via the
 // API's own 404 error message, which names it directly).
 export const GEMINI_MODEL = "gemini-3.6-flash";
+
+function isRetryableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("503") || message.includes("UNAVAILABLE") || message.includes("high demand");
+}
+
+// Gemini returns transient 503s under load often enough in practice that a
+// single retry meaningfully improves success rate. Kept to one short-delay
+// retry (not exponential backoff) to stay well within serverless function
+// time limits — the analysis call already takes several seconds on its own.
+export async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (!isRetryableError(error)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return fn();
+  }
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGemini, GEMINI_MODEL } from "@/lib/gemini";
+import { getGemini, GEMINI_MODEL, withGeminiRetry } from "@/lib/gemini";
 import { extractPdfText } from "@/lib/pdf";
 import { sanitizePII } from "@/lib/pii";
 import { parseClauseBlocks, renderClauseOutline } from "@/lib/clause-parser";
@@ -57,15 +57,17 @@ export async function POST(request: Request) {
   const documentForPrompt = clauseOutline.length > 0 ? clauseOutline : parsedRequest.data.text;
 
   try {
-    const response = await getGemini().models.generateContent({
-      model: GEMINI_MODEL,
-      config: {
-        systemInstruction: LEGAL_ANALYSIS_SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        temperature: 0.2,
-      },
-      contents: buildAnalysisPrompt(documentForPrompt, parsedRequest.data.fileName),
-    });
+    const response = await withGeminiRetry(() =>
+      getGemini().models.generateContent({
+        model: GEMINI_MODEL,
+        config: {
+          systemInstruction: LEGAL_ANALYSIS_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
+        contents: buildAnalysisPrompt(documentForPrompt, parsedRequest.data.fileName),
+      })
+    );
 
     const raw = response.text;
     if (!raw) {
@@ -85,6 +87,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ report: report.data, documentText: parsedRequest.data.text });
   } catch (error) {
     console.error("[api/analyze] Gemini request failed:", error);
-    return NextResponse.json({ error: "Analysis failed. Please try again." }, { status: 500 });
+    const message =
+      error instanceof Error && error.message.includes("503")
+        ? "The AI service is experiencing high demand right now. Please wait a moment and try again."
+        : "Analysis failed. Please try again.";
+    return NextResponse.json({ error: message }, { status: 503 });
   }
 }
