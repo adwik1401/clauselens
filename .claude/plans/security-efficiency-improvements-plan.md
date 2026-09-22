@@ -59,3 +59,17 @@ Each phase follows:
 - [x] 🟩 Commit, push, redeploy to Netlify
 - [x] 🟩 Live smoke test against the deployed site
 - [x] 🟩 Update `CHANGELOG.md`
+
+### Phase 4 — Follow-up: real cross-instance state + CSP tightening ✅
+> Claude-managed (no sub-agent delegation)
+
+Triggered by the AI Evaluation Score dropping (97.75 → 92) after Phase 1-3, with **Security (95→85) and Efficiency (90→75) — the two categories just "improved" — both moving the wrong way**. Diagnosis: the rate limiter and cache were in-memory Maps, and the code's own comments admitted this only works within a single warm Netlify Function instance — a real weakness an AI code reviewer would correctly flag, not evaluator noise.
+
+- [x] 🟩 **Rebuilt rate limiting and caching on Netlify Blobs** (`@netlify/blobs`, free/built-in) instead of in-memory Maps — both are now genuinely shared and durable across function instances, not just locally convincing.
+  - [x] 🟩 `lib/rate-limit.ts`: optimistic-concurrency increment (ETag `onlyIfMatch`/`onlyIfNew`, bounded retries) instead of a plain counter, so concurrent requests don't silently clobber each other. Fails open (allows the request) if Blobs is unavailable.
+  - [x] 🟩 `lib/cache.ts`: same store swap, TTL logic unchanged.
+  - [x] 🟩 **Real bug caught in testing:** `rate-limit.ts` called `getStore()` outside its try/catch, so it threw unguarded (and broke every request) when no Netlify context is available — e.g. plain `next dev`/`next start` without `netlify dev`. Fixed by moving the call inside the guarded block. `cache.ts` didn't have this bug (already correctly scoped).
+- [x] 🟩 **Tightened the CSP.** Refactored the 3 inline `style={{}}` usages (`app/page.tsx` ambient background, `risk-card.tsx` stagger delay, `risk-dashboard.tsx` meter width) to fixed CSS classes in `globals.css`, so `style-src` no longer needs `'unsafe-inline'`.
+  - [x] 🟩 **Attempted and reverted:** a nonce-based CSP for `script-src` (via `middleware.ts`, Next.js's documented pattern) to drop `'unsafe-inline'` there too. Live browser testing against a real production build showed Next's own chunk-loader and hydration scripts weren't picking up the nonce — **every script on the page was blocked, meaning zero JS executed**. Caught before deploy via a real Playwright check against `next start`, not just `next dev` (which has a separate, unrelated CSP issue: webpack's HMR needs `'unsafe-eval'`, dev-only, irrelevant to what ships). Reverted `script-src` to `'self' 'unsafe-inline'` rather than risk taking the live site down this close to the deadline over an incompletely-understood Next.js internal. `style-src`'s tightening stayed, since it was verified working with zero CSP violations in production.
+- [x] 🟩 Full re-verification: typecheck, lint, 53/53 tests (rewrote the Blobs-touching tests with an in-memory fake `@netlify/blobs` store via `vi.hoisted`, since real Blobs only works when deployed or under `netlify dev`), production build, and three separate rounds of live Playwright browser testing against `next start` (not just `curl`) — first catching the middleware regression, second catching the `getStore()` scoping bug, third confirming a clean end-to-end run (real Gemini analysis + real Q&A, zero console errors).
+- [ ] 🟥 Commit, push, redeploy to Netlify, and live-verify against production — **next step**.

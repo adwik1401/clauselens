@@ -18,7 +18,7 @@ const ChatRequestSchema = z.object({
 // no reason to hold the full answer server-side before the client sees any
 // of it. Tokens are forwarded to the browser as Gemini produces them.
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(getClientIp(request));
+  const rateLimit = await checkRateLimit(getClientIp(request));
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment and try again." },

@@ -5,8 +5,7 @@ export function RiskCard({ clause, index }: { clause: ClauseRisk; index: number 
   return (
     <article
       id={`clause-${index}`}
-      style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-      className="animate-fade-up scroll-mt-4 rounded-xl border border-stone-200 bg-white p-4 shadow-diffuse-sm transition-shadow duration-200 hover:shadow-diffuse dark:border-stone-800 dark:bg-stone-900"
+      className={`stagger-delay-${Math.min(index, 8)} animate-fade-up scroll-mt-4 rounded-xl border border-stone-200 bg-white p-4 shadow-diffuse-sm transition-shadow duration-200 hover:shadow-diffuse dark:border-stone-800 dark:bg-stone-900`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>

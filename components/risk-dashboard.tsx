@@ -16,6 +16,15 @@ function riskScoreBarColor(score: number): string {
   return "bg-risk-low";
 }
 
+// Rounds to the nearest .risk-meter-N class defined in globals.css (used
+// instead of an inline `style={{ width }}` so the CSP can drop
+// style-src 'unsafe-inline').
+function riskMeterClass(score: number): string {
+  const clamped = Math.min(100, Math.max(0, score));
+  const bucket = Math.round(clamped / 5) * 5;
+  return `risk-meter-${bucket}`;
+}
+
 type RiskDashboardProps = {
   report: LegalAuditReport;
   documentText: string;
@@ -51,8 +60,7 @@ export function RiskDashboard({ report, documentText, fileName }: RiskDashboardP
             </p>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
               <div
-                className={`h-full rounded-full transition-all duration-700 ${riskScoreBarColor(report.overallRiskScore)}`}
-                style={{ width: `${Math.min(100, Math.max(0, report.overallRiskScore))}%` }}
+                className={`h-full rounded-full transition-all duration-700 ${riskScoreBarColor(report.overallRiskScore)} ${riskMeterClass(report.overallRiskScore)}`}
                 role="img"
                 aria-label={`Risk meter at ${report.overallRiskScore} out of 100`}
               />

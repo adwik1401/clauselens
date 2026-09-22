@@ -52,14 +52,7 @@ export default function Home() {
   return (
     <main className="relative min-h-[100dvh] overflow-hidden">
       {/* Ambient background accent — fixed, low-opacity, never intercepts input */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 50% at 15% 10%, rgba(161,92,31,0.06), transparent), radial-gradient(ellipse 50% 40% at 90% 80%, rgba(161,92,31,0.04), transparent)",
-        }}
-      />
+      <div aria-hidden="true" className="ambient-accent pointer-events-none fixed inset-0 z-0" />
 
       {!acknowledged && (
         <DisclaimerModal onAcknowledge={() => setAcknowledged(true)} />

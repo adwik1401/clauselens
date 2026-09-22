@@ -2,6 +2,15 @@
 
 All notable changes to ClauseLens, logged per `/execute` phase.
 
+## Security & Efficiency Follow-up: Real Cross-Instance State
+The AI Evaluation Score dropped (97.75 → 92) after the previous entry, with Security (95→85) and Efficiency (90→75) — the two categories just improved — both moving the wrong way. Not evaluator noise: the in-memory rate limiter and cache only worked within a single warm Netlify Function instance, and the code's own comments admitted it.
+
+- Rebuilt both on **Netlify Blobs** (free, built-in shared key-value store) instead of in-memory `Map`s — genuinely shared and durable across function instances now, not just locally convincing. `lib/rate-limit.ts` uses optimistic-concurrency increment (ETag `onlyIfMatch`/`onlyIfNew`, bounded retries) so concurrent requests can't silently clobber each other; both fail open if Blobs is unavailable.
+- **Real bug caught in testing:** `rate-limit.ts` called `getStore()` outside its try/catch, so it threw unguarded outside a Netlify context (e.g. plain `next start` without `netlify dev`), breaking every request. Fixed.
+- Tightened the CSP: refactored the 3 remaining inline `style={{}}` usages to fixed CSS classes, so `style-src` dropped `'unsafe-inline'`.
+- **Attempted and reverted:** a nonce-based CSP for `script-src` via `middleware.ts` (Next.js's documented pattern). Live Playwright testing against a real production build (`next start`, not `next dev`) showed Next's own chunk-loader scripts weren't picking up the nonce — every script on the page was CSP-blocked, meaning the entire site would have been non-functional. Caught before deploy; reverted rather than risk the live site this close to the deadline over an incompletely-understood Next.js internal.
+- Rewrote the Blobs-touching tests with an in-memory fake `@netlify/blobs` store (`vi.hoisted`), since real Blobs only works when deployed or under `netlify dev`. 53/53 tests passing, plus three rounds of live browser (not just `curl`) testing against a production build.
+
 ## Security & Efficiency Score Improvements
 Targeted the two AI-evaluator categories with headroom (Security 95, Efficiency 90 — four others already at 100).
 

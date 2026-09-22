@@ -18,7 +18,7 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB — generous for a contract PDF, 
 // text, then makes one structured Gemini call and validates the response
 // against LegalAuditReportSchema before it ever reaches the client.
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(getClientIp(request));
+  const rateLimit = await checkRateLimit(getClientIp(request));
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment and try again." },
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   // Re-analyzing an identical document (retry, re-clicked sample, demo
   // re-run) is common — skip the Gemini call entirely on a cache hit.
   const documentHash = hashDocument(parsedRequest.data.text);
-  const cached = getCachedAnalysis(documentHash);
+  const cached = await getCachedAnalysis(documentHash);
   if (cached) {
     return NextResponse.json({ report: cached.report, documentText: cached.documentText });
   }
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       );
     }
 
-    setCachedAnalysis(documentHash, report.data, parsedRequest.data.text);
+    await setCachedAnalysis(documentHash, report.data, parsedRequest.data.text);
     return NextResponse.json({ report: report.data, documentText: parsedRequest.data.text });
   } catch (error) {
     console.error("[api/analyze] Gemini request failed:", error);

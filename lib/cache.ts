@@ -1,33 +1,55 @@
 import { createHash } from "crypto";
+import { getStore } from "@netlify/blobs";
 import type { LegalAuditReport } from "@/lib/schemas/legal-audit";
 
-// In-memory cache keyed by a hash of the sanitized document text. Analyzing
-// the same document twice (a retry, a re-clicked sample button, a demo
-// re-run) is common and otherwise re-pays the full Gemini call every time.
-// Scoped to a single function instance's lifetime — no external cache
-// infra, consistent with the rate limiter's tradeoffs (see lib/rate-limit.ts).
+// Netlify Blobs-backed cache, keyed by a hash of the sanitized document
+// text. An earlier version of this cache was a plain in-memory Map, which
+// only helped when a request happened to land on the same warm Netlify
+// Function instance that served the original — a real weakness, since
+// Netlify routes concurrent requests across multiple instances. Blobs is a
+// shared, durable store all instances read from, so a cache hit is now
+// reliable regardless of which instance handles the request.
 const TTL_MS = 10 * 60 * 1000; // 10 minutes
-const MAX_ENTRIES = 200;
 
 type CacheEntry = { report: LegalAuditReport; documentText: string; expiresAt: number };
 
-const cache = new Map<string, CacheEntry>();
+function store() {
+  return getStore({ name: "analysis-cache", consistency: "strong" });
+}
 
 export function hashDocument(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-export function getCachedAnalysis(hash: string): CacheEntry | null {
-  const entry = cache.get(hash);
-  if (!entry) return null;
-  if (Date.now() >= entry.expiresAt) {
-    cache.delete(hash);
+export async function getCachedAnalysis(hash: string): Promise<CacheEntry | null> {
+  try {
+    const entry = (await store().get(hash, { type: "json" })) as CacheEntry | null;
+    if (!entry) return null;
+    if (Date.now() >= entry.expiresAt) {
+      await store()
+        .delete(hash)
+        .catch(() => {});
+      return null;
+    }
+    return entry;
+  } catch (error) {
+    // Blobs being unavailable should degrade to "no cache", not break analysis.
+    console.error("[cache] read failed, treating as a miss:", error);
     return null;
   }
-  return entry;
 }
 
-export function setCachedAnalysis(hash: string, report: LegalAuditReport, documentText: string): void {
-  if (cache.size >= MAX_ENTRIES) cache.clear();
-  cache.set(hash, { report, documentText, expiresAt: Date.now() + TTL_MS });
+export async function setCachedAnalysis(
+  hash: string,
+  report: LegalAuditReport,
+  documentText: string
+): Promise<void> {
+  const entry: CacheEntry = { report, documentText, expiresAt: Date.now() + TTL_MS };
+  try {
+    await store().setJSON(hash, entry);
+  } catch (error) {
+    // Caching is an optimization, not a correctness requirement — a failed
+    // write just means the next identical request re-analyzes.
+    console.error("[cache] write failed, continuing without caching this entry:", error);
+  }
 }
