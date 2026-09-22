@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { classifyGeminiError, getGemini, GEMINI_MODEL, withGeminiRetry } from "@/lib/gemini";
 import { extractPdfText } from "@/lib/pdf";
+import { isValidPdf } from "@/lib/file-validation";
 import { sanitizePII } from "@/lib/pii";
 import { parseClauseBlocks, renderClauseOutline } from "@/lib/clause-parser";
 import { buildAnalysisPrompt, LEGAL_ANALYSIS_SYSTEM_PROMPT } from "@/lib/prompts";
 import { AnalyzeRequestSchema, LegalAuditReportSchema } from "@/lib/schemas/legal-audit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getCachedAnalysis, hashDocument, setCachedAnalysis } from "@/lib/cache";
 
 export const runtime = "nodejs"; // pdf-parse needs the Node runtime, not edge
 
@@ -15,6 +18,14 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB — generous for a contract PDF, 
 // text, then makes one structured Gemini call and validates the response
 // against LegalAuditReportSchema before it ever reaches the client.
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(getClientIp(request));
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   let rawText: string;
   let fileName: string | undefined;
 
@@ -29,10 +40,21 @@ export async function POST(request: Request) {
       }
       fileName = "name" in file ? (file as File).name : undefined;
       const buffer = Buffer.from(await file.arrayBuffer());
-      rawText =
-        fileName?.toLowerCase().endsWith(".pdf") || file.type === "application/pdf"
-          ? await extractPdfText(buffer)
-          : buffer.toString("utf-8");
+      const looksLikePdf = fileName?.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+
+      if (looksLikePdf) {
+        // Validate actual content, not just the extension/MIME type the
+        // browser reported — both are client-controlled.
+        if (!isValidPdf(buffer)) {
+          return NextResponse.json(
+            { error: "File is named or typed as a PDF but doesn't contain valid PDF content." },
+            { status: 400 }
+          );
+        }
+        rawText = await extractPdfText(buffer);
+      } else {
+        rawText = buffer.toString("utf-8");
+      }
     } else if (typeof textField === "string") {
       rawText = textField;
       fileName = typeof formData.get("fileName") === "string" ? String(formData.get("fileName")) : undefined;
@@ -51,6 +73,14 @@ export async function POST(request: Request) {
       { error: "Invalid document.", details: parsedRequest.error.flatten() },
       { status: 400 }
     );
+  }
+
+  // Re-analyzing an identical document (retry, re-clicked sample, demo
+  // re-run) is common — skip the Gemini call entirely on a cache hit.
+  const documentHash = hashDocument(parsedRequest.data.text);
+  const cached = getCachedAnalysis(documentHash);
+  if (cached) {
+    return NextResponse.json({ report: cached.report, documentText: cached.documentText });
   }
 
   const clauseOutline = renderClauseOutline(parseClauseBlocks(parsedRequest.data.text));
@@ -84,6 +114,7 @@ export async function POST(request: Request) {
       );
     }
 
+    setCachedAnalysis(documentHash, report.data, parsedRequest.data.text);
     return NextResponse.json({ report: report.data, documentText: parsedRequest.data.text });
   } catch (error) {
     console.error("[api/analyze] Gemini request failed:", error);

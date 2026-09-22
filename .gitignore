@@ -32,3 +32,15 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# /brag-generated promo video project (not part of the app; large, and
+# ClauseLens repo has a strict <10MB submission cap)
+brag-output/
+
+# Automated demo-video recording project (Playwright + Kokoro TTS) — not
+# part of the app, not committed
+demo-video/
+
+# Merged submission video (brag + walkthrough) — not part of the app,
+# well over what the repo needs to carry
+clauselens-full-submission-video.mp4

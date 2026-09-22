@@ -28,6 +28,7 @@ export function QaChat({ documentText }: { documentText: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [retryStatus, setRetryStatus] = useState<string | null>(null);
 
   async function handleAsk(e: React.FormEvent) {
@@ -38,18 +39,38 @@ export function QaChat({ documentText }: { documentText: string }) {
     setMessages((prev) => [...prev, { role: "user", text: q }]);
     setQuestion("");
     setLoading(true);
+    setStreaming(false);
     setRetryStatus(null);
 
+    let streamStarted = false;
     try {
-      const answer = await askQuestion(documentText, q, (attempt, max) =>
-        setRetryStatus(`Busy — retrying (${attempt}/${max})…`)
+      await askQuestion(
+        documentText,
+        q,
+        (textSoFar) => {
+          // First chunk: append the placeholder that later chunks update in
+          // place, so the answer grows in the same bubble instead of one
+          // new bubble per chunk.
+          if (!streamStarted) {
+            streamStarted = true;
+            setStreaming(true);
+            setMessages((prev) => [...prev, { role: "assistant", text: textSoFar }]);
+          } else {
+            setMessages((prev) => {
+              const next = [...prev];
+              next[next.length - 1] = { role: "assistant", text: textSoFar };
+              return next;
+            });
+          }
+        },
+        (attempt, max) => setRetryStatus(`Busy — retrying (${attempt}/${max})…`)
       );
-      setMessages((prev) => [...prev, { role: "assistant", text: answer }]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong.";
       setMessages((prev) => [...prev, { role: "assistant", text: `Error: ${message}` }]);
     } finally {
       setLoading(false);
+      setStreaming(false);
       setRetryStatus(null);
     }
   }
@@ -102,7 +123,7 @@ export function QaChat({ documentText }: { documentText: string }) {
             {m.text}
           </p>
         ))}
-        {loading && (
+        {loading && !streaming && (
           <p className="mr-auto text-xs text-stone-500 dark:text-stone-400">
             {retryStatus ?? "Thinking…"}
           </p>

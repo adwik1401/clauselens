@@ -71,19 +71,56 @@ export async function analyzeDocument(
   return data as AnalyzeResult;
 }
 
+// /api/chat-doc streams its answer (see that route for why) rather than
+// returning JSON, so it can't reuse fetchWithRetry as-is: a streamed 200 has
+// no JSON body to parse. Retry logic still applies to the request itself —
+// only to non-ok responses, before any streaming has started — then the
+// success path switches to reading the stream chunk by chunk.
 export async function askQuestion(
   documentText: string,
   question: string,
+  onChunk?: (textSoFar: string) => void,
   onRetry?: (attempt: number, maxAttempts: number) => void
 ): Promise<string> {
-  const data = await fetchWithRetry(
-    () =>
-      fetch("/api/chat-doc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentText, question }),
-      }),
-    onRetry
-  );
-  return (data as { answer: string }).answer;
+  let lastError = "Request failed.";
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch("/api/chat-doc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentText, question }),
+    });
+
+    if (res.ok && res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += decoder.decode(value, { stream: true });
+        onChunk?.(full);
+      }
+      return full;
+    }
+
+    let data: { error?: string } = {};
+    let parseFailed = false;
+    try {
+      data = await res.json();
+    } catch {
+      parseFailed = true;
+    }
+
+    lastError = data.error ?? (parseFailed ? "The server returned an unexpected response." : lastError);
+    const isRetryable = parseFailed || res.status === 503;
+    const hasAttemptsLeft = attempt < MAX_ATTEMPTS;
+
+    if (!isRetryable || !hasAttemptsLeft) throw new Error(lastError);
+
+    onRetry?.(attempt + 1, MAX_ATTEMPTS);
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  }
+
+  throw new Error(lastError);
 }

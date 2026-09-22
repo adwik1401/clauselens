@@ -22,25 +22,56 @@ function htmlErrorResponse(status: number): Response {
   } as unknown as Response;
 }
 
+// /api/chat-doc's success path streams plain text (see that route), not
+// JSON — this mocks a ReadableStream body the way askQuestion actually
+// consumes it, one chunk at a time via getReader().
+function streamResponse(text: string): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(text));
+      controller.close();
+    },
+  });
+  return { ok: true, status: 200, body } as unknown as Response;
+}
+
 describe("askQuestion", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
   it("returns the answer on success without retrying", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(true, 200, { answer: "Yes." }));
+    vi.mocked(fetch).mockResolvedValueOnce(streamResponse("Yes."));
 
     await expect(askQuestion("doc text", "question?")).resolves.toBe("Yes.");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("streams chunks to onChunk as they arrive, cumulatively", async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode("Yes, "));
+        controller.enqueue(encoder.encode("you can."));
+        controller.close();
+      },
+    });
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200, body } as unknown as Response);
+
+    const chunks: string[] = [];
+    await askQuestion("doc text", "question?", (textSoFar) => chunks.push(textSoFar));
+
+    expect(chunks).toEqual(["Yes, ", "Yes, you can."]);
+  });
+
   it("retries on a 503 and eventually succeeds", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse(false, 503, { error: "busy" }))
-      .mockResolvedValueOnce(jsonResponse(true, 200, { answer: "Yes." }));
+      .mockResolvedValueOnce(streamResponse("Yes."));
 
     const onRetry = vi.fn();
-    await expect(askQuestion("doc text", "question?", onRetry)).resolves.toBe("Yes.");
+    await expect(askQuestion("doc text", "question?", undefined, onRetry)).resolves.toBe("Yes.");
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(onRetry).toHaveBeenCalledWith(2, 3);
   }, 10000);
@@ -55,7 +86,7 @@ describe("askQuestion", () => {
   it("retries when the response body isn't valid JSON (platform-level failure)", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(htmlErrorResponse(502))
-      .mockResolvedValueOnce(jsonResponse(true, 200, { answer: "Yes." }));
+      .mockResolvedValueOnce(streamResponse("Yes."));
 
     await expect(askQuestion("doc text", "question?")).resolves.toBe("Yes.");
     expect(fetch).toHaveBeenCalledTimes(2);
